@@ -1,0 +1,63 @@
+diff --git a/va/x11/dri2_util.c b/va/x11/dri2_util.c
+index e383db1..230c598 100644
+--- a/va/x11/dri2_util.c
++++ b/va/x11/dri2_util.c
+@@ -182,8 +182,7 @@ va_isDRI2Connected(VADriverContextP ctx, char **driver_name)
+     char *device_name = NULL;
+     drm_magic_t magic;        
+     *driver_name = NULL;
+-    dri_state->base.fd = -1;
+-    dri_state->base.auth_type = VA_NONE;
++
+     if (!VA_DRI2QueryExtension(ctx->native_dpy, &event_base, &error_base))
+         goto err_out;
+ 
+@@ -195,6 +194,9 @@ va_isDRI2Connected(VADriverContextP ctx, char **driver_name)
+                      driver_name, &device_name))
+         goto err_out;
+ 
++    if ((dri_state->base.fd != -1) && (dri_state->base.auth_type != VA_NONE))
++        goto success_out;
++
+     dri_state->base.fd = open(device_name, O_RDWR);
+ 
+     if (dri_state->base.fd < 0)
+@@ -215,6 +217,7 @@ va_isDRI2Connected(VADriverContextP ctx, char **driver_name)
+     dri_state->close = dri2Close;
+     gsDRI2SwapAvailable = (minor >= 2);
+ 
++success_out:
+     Xfree(device_name);
+ 
+     return True;
+diff --git a/va/x11/va_x11.c b/va/x11/va_x11.c
+index cb23168..1a02714 100644
+--- a/va/x11/va_x11.c
++++ b/va/x11/va_x11.c
+@@ -145,6 +145,8 @@ static VAStatus va_DRI2_GetDriverName (
+         }
+     }
+ 
++    free(*driver_name_ptr);
++
+     /*
+      * If the dri2 driver name does not have a mapped vaapi driver name, then
+      * assume they have the same name.
+@@ -153,7 +155,6 @@ static VAStatus va_DRI2_GetDriverName (
+         return VA_STATUS_SUCCESS;
+ 
+     /* Use the mapped vaapi driver name */
+-    free(*driver_name_ptr);
+     *driver_name_ptr = strdup(m->name);
+     if (!*driver_name_ptr)
+         return VA_STATUS_ERROR_ALLOCATION_FAILED;
+@@ -287,6 +288,9 @@ VADisplay vaGetDisplay (
+         return NULL;
+     }
+ 
++    dri_state->base.fd = -1;
++    dri_state->base.auth_type = VA_NONE;
++
+     pDriverContext->drm_state = dri_state;
+ 
+     return (VADisplay)pDisplayContext;
